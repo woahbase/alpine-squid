@@ -1,0 +1,2 @@
+#!/usr/bin/with-contenv bash
+/usr/sbin/squid -NYCd 5 -f /etc/squid/squid.conf

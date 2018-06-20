@@ -1,0 +1,26 @@
+ARG ARCH=frommakefile
+ARG DOCKERSRC=frommakefile
+ARG USERNAME=frommakefile
+#
+FROM ${USERNAME}/${DOCKERSRC}:${ARCH}
+#
+ARG PUID=1000
+ARG PGID=1000
+#
+RUN set -xe \
+#   && addgroup -g ${PGID} -S alpine \
+#   && adduser -u ${PUID} -G alpine -h /var/cache/squid -D squid \
+    && apk add --no-cache --purge -uU \
+#       --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+        apache2-utils squid \
+    && mkdir -p /defaults/squid.defaults \
+    && mv /etc/squid/* /defaults/squid.defaults \
+    && rm -rf /var/cache/apk/* /tmp/* 
+#
+COPY root/ /
+#
+VOLUME /var/cache/squid/ /etc/squid/
+#
+EXPOSE 3128 3129
+#
+ENTRYPOINT ["/init"]
