@@ -1,0 +1,43 @@
+#!/usr/bin/with-contenv bash
+set -e
+
+CONFDIR="${CONFDIR:-/etc/squid}";
+CACHEDIR="${CACHEDIR:-/var/cache/squid}";
+
+mkdir -p \
+    $CONFDIR \
+    $CACHEDIR \
+    /var/log/squid \
+    /var/run/squid \
+    ;
+touch /var/run/squid.pid;
+
+# ensure squid configs exist
+if [ ! -f "${CONFDIR}/squid.conf" ];
+then
+    echo "Using default config";
+    cp -rv /defaults/squid/* ${CONFDIR}/;
+fi;
+
+chown ${S6_USER:-alpine}:${S6_USER:-alpine} \
+    $CACHEDIR \
+    /var/log/squid \
+    /var/run/squid \
+    /var/run/squid.pid \
+    ;
+
+chown -R ${S6_USER:-alpine}:${S6_USER:-alpine} \
+    $CONFDIR \
+    ;
+
+chmod ugo+w \
+    /dev/stdout \
+    /dev/stderr;
+
+# initialize cache dir
+if [ ! -d "${CACHEDIR}/00" ];
+then
+    echo "Setting up cache directories.";
+    /usr/sbin/squid -Nz -f ${CONFDIR}/squid.conf;
+    chown -R ${S6_USER:-alpine}:${S6_USER:-alpine} $CACHEDIR;
+fi;

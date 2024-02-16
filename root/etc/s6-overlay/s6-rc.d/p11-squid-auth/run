@@ -1,0 +1,31 @@
+#!/usr/bin/with-contenv bash
+set -e
+
+KEYDIR="/etc/squid";
+HTPASSWDFILE="${HTPASSWDFILE:-$KEYDIR/.htpasswd}";
+ADMIN=${WEBADMIN:-admin};
+PASSWORD=${PASSWORD:-insecurebydefault};
+
+if [ -z "${SQUID_NO_HTPASSWD}" ]; # i.e. no need for htpasswd
+then
+    mkdir -p \
+        $(dirname $HTPASSWDFILE) \
+        ;
+
+    if [ -f "${HTPASSWDFILE}" ];
+    then
+        echo "Using .htpasswd found in ${HTPASSWDFILE}";
+    else
+        echo "Generating ${HTPASSWDFILE}";
+        echo "Adding credentials for ${ADMIN}";
+        htpasswd -bcB "${HTPASSWDFILE}" "${ADMIN}" "${PASSWORD}";
+    fi;
+    chown ${S6_USER:-alpine}:${S6_USER:-alpine} \
+        $(dirname $HTPASSWDFILE) \
+        $HTPASSWDFILE \
+        ;
+    chmod 400 $HTPASSWDFILE;
+else
+    echo "Not generating .htpasswd";
+fi;
+
