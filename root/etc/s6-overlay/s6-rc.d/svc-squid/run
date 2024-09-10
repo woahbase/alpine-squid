@@ -1,8 +1,11 @@
 #!/usr/bin/with-contenv bash
 set -e
 
-CONFDIR="${CONFDIR:-/etc/squid}";
+SQUID_CONFDIR="${SQUID_CONFDIR:-/etc/squid}";
 SQUID_ARGS="${SQUID_ARGS:- -NYCd 5}";
 
 exec \
-    /usr/sbin/squid ${SQUID_ARGS} -f ${CONFDIR}/squid.conf
+    /usr/sbin/squid \
+    -f ${SQUID_CONFDIR}/squid.conf \
+    ${SQUID_ARGS} \
+    ;

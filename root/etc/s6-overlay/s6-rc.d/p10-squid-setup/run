@@ -1,33 +1,37 @@
 #!/usr/bin/with-contenv bash
 set -e
 
-CONFDIR="${CONFDIR:-/etc/squid}";
-CACHEDIR="${CACHEDIR:-/var/cache/squid}";
+vecho () { if [ "${S6_VERBOSITY:-1}" -gt 0 ]; then echo "[$0] $@"; fi; }
 
+SQUID_CONFDIR="${SQUID_CONFDIR:-/etc/squid}";
+SQUID_CACHEDIR="${SQUID_CACHEDIR:-/var/cache/squid}";
+
+vecho "Ensure configuration directories exist.";
 mkdir -p \
-    $CONFDIR \
-    $CACHEDIR \
+    $SQUID_CONFDIR \
+    $SQUID_CACHEDIR \
     /var/log/squid \
     /var/run/squid \
     ;
 touch /var/run/squid.pid;
 
 # ensure squid configs exist
-if [ ! -f "${CONFDIR}/squid.conf" ];
+if [ ! -f "${SQUID_CONFDIR}/squid.conf" ];
 then
-    echo "Using default config";
-    cp -rv /defaults/squid/* ${CONFDIR}/;
+    vecho "Setting up default configurations at ${SQUID_CONFDIR}.";
+    cp -rv /defaults/squid/* ${SQUID_CONFDIR}/;
 fi;
 
+vecho "Fixing permissions.";
 chown ${S6_USER:-alpine}:${S6_USER:-alpine} \
-    $CACHEDIR \
+    $SQUID_CACHEDIR \
     /var/log/squid \
     /var/run/squid \
     /var/run/squid.pid \
     ;
 
 chown -R ${S6_USER:-alpine}:${S6_USER:-alpine} \
-    $CONFDIR \
+    $SQUID_CONFDIR \
     ;
 
 chmod ugo+w \
@@ -35,9 +39,9 @@ chmod ugo+w \
     /dev/stderr;
 
 # initialize cache dir
-if [ ! -d "${CACHEDIR}/00" ];
+if [ ! -d "${SQUID_CACHEDIR}/00" ];
 then
-    echo "Setting up cache directories.";
-    /usr/sbin/squid -Nz -f ${CONFDIR}/squid.conf;
-    chown -R ${S6_USER:-alpine}:${S6_USER:-alpine} $CACHEDIR;
+    vecho "Setting up Squid cache directories.";
+    /usr/sbin/squid -Nz -f ${SQUID_CONFDIR}/squid.conf;
+    chown -R ${S6_USER:-alpine}:${S6_USER:-alpine} $SQUID_CACHEDIR;
 fi;
