@@ -11,7 +11,7 @@ PASSWORD=${PASSWORD:-insecurebydefault};
 if [ -z "${SQUID_NO_HTPASSWD}" ]; # i.e. no need for htpasswd
 then
     mkdir -p \
-        $(dirname $SQUID_HTPASSWDFILE) \
+        $(dirname ${SQUID_HTPASSWDFILE}) \
         ;
 
     if [ -f "${SQUID_HTPASSWDFILE}" ];
@@ -22,11 +22,11 @@ then
         vecho "Adding credentials for ${WEBADMIN}";
         htpasswd -bcB "${SQUID_HTPASSWDFILE}" "${WEBADMIN}" "${PASSWORD}";
     fi;
-    chown ${S6_USER:-alpine}:${S6_USER:-alpine} \
-        $(dirname $SQUID_HTPASSWDFILE) \
-        $SQUID_HTPASSWDFILE \
+    chown ${S6_USER:-alpine}:${PGID:-1000} \
+        $(dirname ${SQUID_HTPASSWDFILE}) \
+        ${SQUID_HTPASSWDFILE} \
         ;
-    chmod 400 $SQUID_HTPASSWDFILE;
+    chmod 400 ${SQUID_HTPASSWDFILE};
 # else
 #     vecho "Not generating .htpasswd";
 fi;

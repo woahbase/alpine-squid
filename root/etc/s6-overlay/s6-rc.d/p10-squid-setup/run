@@ -8,8 +8,8 @@ SQUID_CACHEDIR="${SQUID_CACHEDIR:-/var/cache/squid}";
 
 vecho "Ensure configuration directories exist.";
 mkdir -p \
-    $SQUID_CONFDIR \
-    $SQUID_CACHEDIR \
+    ${SQUID_CONFDIR} \
+    ${SQUID_CACHEDIR} \
     /var/log/squid \
     /var/run/squid \
     ;
@@ -23,14 +23,14 @@ then
 fi;
 
 vecho "Fixing permissions.";
-chown ${S6_USER:-alpine}:${S6_USER:-alpine} \
-    $SQUID_CACHEDIR \
+chown ${S6_USER:-alpine}:${PGID:-1000} \
+    ${SQUID_CACHEDIR} \
     /var/log/squid \
     /var/run/squid \
     /var/run/squid.pid \
     ;
 
-chown -R ${S6_USER:-alpine}:${S6_USER:-alpine} \
+chown -R ${S6_USER:-alpine}:${PGID:-1000} \
     $SQUID_CONFDIR \
     ;
 
@@ -43,5 +43,18 @@ if [ ! -d "${SQUID_CACHEDIR}/00" ];
 then
     vecho "Setting up Squid cache directories.";
     /usr/sbin/squid -Nz -f ${SQUID_CONFDIR}/squid.conf;
-    chown -R ${S6_USER:-alpine}:${S6_USER:-alpine} $SQUID_CACHEDIR;
+    chown -R \
+        ${S6_USER:-alpine}:${PGID:-1000} \
+        "${SQUID_CACHEDIR}" \
+        ;
+fi;
+
+if [ -n "${SQUID_PERMFIX_CACHEDIR}" ]; # may become cumbersome if CACHEDIR has large number of files
+then
+    vecho "Fixing permissions on $SQUID_CACHEDIR files.";
+    find "${SQUID_CACHEDIR}" \
+        \! -user ${S6_USER:-alpine} -exec \
+        chown --no-dereference \
+        ${S6_USER:-alpine}:${PGID:-1000} \
+        '{}' +;
 fi;
