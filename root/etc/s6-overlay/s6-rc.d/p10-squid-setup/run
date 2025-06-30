@@ -5,56 +5,81 @@ vecho () { if [ "${S6_VERBOSITY:-1}" -gt 0 ]; then echo "[$0] $@"; fi; }
 
 SQUID_CONFDIR="${SQUID_CONFDIR:-/etc/squid}";
 SQUID_CACHEDIR="${SQUID_CACHEDIR:-/var/cache/squid}";
+SQUID_LOGSDIR="${SQUID_LOGSDIR:-/var/log/squid}";
 
 vecho "Ensure configuration directories exist.";
 mkdir -p \
-    ${SQUID_CONFDIR} \
-    ${SQUID_CACHEDIR} \
-    /var/log/squid \
+    "${SQUID_CONFDIR}" \
+    "${SQUID_CACHEDIR}" \
+    "${SQUID_LOGSDIR}" \
     /var/run/squid \
     ;
 touch /var/run/squid.pid;
 
+# function to substitute paths in config files
+_subst () {
+    sed \
+    -e "s|S6_USER|$S6_USER|g" \
+    -e "s|SQUID_CONFDIR|$SQUID_CONFDIR|g" \
+    -e "s|SQUID_CACHEDIR|$SQUID_CACHEDIR|g" \
+    -e "s|SQUID_LOGSDIR|$SQUID_LOGSDIR|g" \
+    -e "s|SQUID_HOSTNAME|${SQUID_HOSTNAME:-$HOSTNAME}|g" \
+    -e "s|SQUID_HTPASSWDPROG|${SQUID_HTPASSWDPROG:-/usr/lib/squid/basic_ncsa_auth}|g" \
+    -e "s|SQUID_HTPASSWDFILE|${SQUID_HTPASSWDFILE:-$SQUID_CONFDIR/.htpasswd}|g" \
+    $1 > $2;
+}
 # ensure squid configs exist
 if [ ! -f "${SQUID_CONFDIR}/squid.conf" ];
 then
     vecho "Setting up default configurations at ${SQUID_CONFDIR}.";
-    cp -rv /defaults/squid/* ${SQUID_CONFDIR}/;
+    for f in $(find /defaults/squid/ -maxdepth 1 -type f 2>/dev/null | sort -u);
+    do
+        _subst "${f}" "${SQUID_CONFDIR}/$(basename ${f})";
+    done;
 fi;
 
-vecho "Fixing permissions.";
-chown ${S6_USER:-alpine}:${PGID:-1000} \
-    ${SQUID_CACHEDIR} \
-    /var/log/squid \
-    /var/run/squid \
-    /var/run/squid.pid \
-    ;
+if [ -z "${SQUID_SKIP_PERMFIX}" ] \
+&& [ "X${EUID}" == "X0" ]; # requires root
+then
+    vecho "Fixing permissions.";
+    chown ${S6_USER:-squid}:${PGID:-1000} \
+        ${SQUID_CACHEDIR} \
+        ${SQUID_LOGSDIR} \
+        /var/run/squid \
+        /var/run/squid.pid \
+        ;
 
-chown -R ${S6_USER:-alpine}:${PGID:-1000} \
-    $SQUID_CONFDIR \
-    ;
+    chown -R ${S6_USER:-squid}:${PGID:-1000} \
+        "${SQUID_CONFDIR}" \
+        ;
 
-chmod ugo+w \
-    /dev/stdout \
-    /dev/stderr;
+    chmod ugo+w \
+        /dev/stdout \
+        /dev/stderr;
+fi;
 
 # initialize cache dir
 if [ ! -d "${SQUID_CACHEDIR}/00" ];
 then
     vecho "Setting up Squid cache directories.";
     /usr/sbin/squid -Nz -f ${SQUID_CONFDIR}/squid.conf;
-    chown -R \
-        ${S6_USER:-alpine}:${PGID:-1000} \
-        "${SQUID_CACHEDIR}" \
-        ;
+    if [ "X${EUID}" == "X0" ]; # requires root
+    then
+        chown -R \
+            ${S6_USER:-squid}:${PGID:-1000} \
+            "${SQUID_CACHEDIR}" \
+            ;
+    fi;
 fi;
 
-if [ -n "${SQUID_PERMFIX_CACHEDIR}" ]; # may become cumbersome if CACHEDIR has large number of files
+# may become cumbersome if CACHEDIR has large number of files
+if [ -n "${SQUID_PERMFIX_CACHEDIR}" ] \
+&& [ "X${EUID}" == "X0" ]; # requires root
 then
-    vecho "Fixing permissions on $SQUID_CACHEDIR files.";
+    vecho "Fixing permissions on ${SQUID_CACHEDIR} files.";
     find "${SQUID_CACHEDIR}" \
-        \! -user ${S6_USER:-alpine} -exec \
+        \! -user ${S6_USER:-squid} -exec \
         chown --no-dereference \
-        ${S6_USER:-alpine}:${PGID:-1000} \
+        ${S6_USER:-squid}:${PGID:-1000} \
         '{}' +;
 fi;

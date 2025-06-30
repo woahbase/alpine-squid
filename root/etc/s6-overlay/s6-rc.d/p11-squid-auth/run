@@ -3,8 +3,8 @@ set -e
 
 vecho () { if [ "${S6_VERBOSITY:-1}" -gt 0 ]; then echo "[$0] $@"; fi; }
 
-SQUID_KEYDIR="${SQUID_KEYDIR:-/etc/squid}";
-SQUID_HTPASSWDFILE="${SQUID_HTPASSWDFILE:-$KEYDIR/.htpasswd}";
+SQUID_CONFDIR="${SQUID_CONFDIR:-/etc/squid}";
+SQUID_HTPASSWDFILE="${SQUID_HTPASSWDFILE:-$SQUID_CONFDIR/.htpasswd}";
 WEBADMIN=${WEBADMIN:-admin};
 PASSWORD=${PASSWORD:-insecurebydefault};
 
@@ -22,11 +22,15 @@ then
         vecho "Adding credentials for ${WEBADMIN}";
         htpasswd -bcB "${SQUID_HTPASSWDFILE}" "${WEBADMIN}" "${PASSWORD}";
     fi;
-    chown ${S6_USER:-alpine}:${PGID:-1000} \
-        $(dirname ${SQUID_HTPASSWDFILE}) \
-        ${SQUID_HTPASSWDFILE} \
-        ;
-    chmod 400 ${SQUID_HTPASSWDFILE};
+    if [ "X${EUID}" == "X0" ]; # requires root
+    then
+        chown \
+            ${S6_USER:-squid}:${PGID:-1000} \
+            $(dirname ${SQUID_HTPASSWDFILE}) \
+            "${SQUID_HTPASSWDFILE}" \
+            ;
+        chmod 400 "${SQUID_HTPASSWDFILE}";
+    fi;
 # else
 #     vecho "Not generating .htpasswd";
 fi;
