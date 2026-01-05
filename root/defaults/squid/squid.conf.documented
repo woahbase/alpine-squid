@@ -1,4 +1,4 @@
-#	WELCOME TO SQUID 6.12
+#	WELCOME TO SQUID 7.3-VCS
 #	----------------------------
 #
 #	This is the documentation for the Squid configuration file.
@@ -41,9 +41,10 @@
 #
 #	Units accepted by Squid are:
 #		bytes - byte
-#		KB - Kilobyte (1024 bytes)
-#		MB - Megabyte
-#		GB - Gigabyte
+#		KB - Kilobyte (2^10, 1'024 bytes)
+#		MB - Megabyte (2^20, 1'048'576 bytes)
+#		GB - Gigabyte (2^30, 1'073'741'824 bytes)
+#	Squid does not yet support KiB, MiB, and GiB unit names.
 #
 #  Values with time units
 #
@@ -160,6 +161,11 @@
 
 #  TAG: refresh_stale_hit
 #	This option is not yet supported by Squid-3.
+#Default:
+# none
+
+#  TAG: esi_parser
+#	Remove this line. Squid no longer supports this feature.
 #Default:
 # none
 
@@ -399,6 +405,9 @@
 #
 #	In SMP mode, each worker does nearly all what a single Squid daemon
 #	does (e.g., listen on http_port and forward HTTP requests).
+#
+#	Changing the number of workers requires a restart: Squid warns about but
+#	otherwise ignores attempts to change this setting via reconfiguration.
 #Default:
 # SMP support disabled.
 
@@ -507,7 +516,7 @@
 #
 #	A client with credentials is requested to re-authenticate if http_access
 #	or adapted_http_access denies its request _and_ the last evaluated ACL was
-#	either proxy_auth, proxy_auth_regex, ident, ident_regex, or an external
+#	either proxy_auth, proxy_auth_regex, or an external
 #	ACL with %ul or %LOGIN parameter (regardless of whether that last
 #	evaluated ACL matched the denied request). Note that a max_user_ip ACL
 #	does not have this effect: Requests denied after evaluating max_user_ip
@@ -959,7 +968,6 @@
 #	acl aclname dst [-n] ip-address/mask ...	# URL host's IP address [slow]
 #	acl aclname localip ip-address/mask ... # IP address the client connected to [fast]
 #
-#if USE_SQUID_EUI
 #	acl aclname arp      mac-address ...
 #	acl aclname eui64    eui64-address ...
 #	  # [fast]
@@ -979,7 +987,6 @@
 #	  #
 #	  # IPv6 protocol does not contain ARP. MAC/EUI is either
 #	  # encoded directly in the IPv6 address or not available.
-#endif
 #	acl aclname clientside_mark mark[/mask] ...
 #	  # matches CONNMARK of an accepted connection [fast]
 #	  # DEPRECATED. Use the 'client_connection_mark' instead.
@@ -1006,9 +1013,9 @@
 #	acl aclname dstdomain [-n] .foo.com ...
 #	  # Destination server from URL [fast]
 #	acl aclname srcdom_regex [-i] \.foo\.com ...
-#	  # regex matching client name [slow]
+#	  # POSIX extended regex matching client name [slow]
 #	acl aclname dstdom_regex [-n] [-i] \.foo\.com ...
-#	  # regex matching server [fast]
+#	  # POSIX extended regex matching server [fast]
 #	  #
 #	  # For dstdomain and dstdom_regex a reverse lookup is tried if a IP
 #	  # based URL is used and no match is found. The name "none" is used
@@ -1044,14 +1051,18 @@
 #	  #  h1:m1 must be less than h2:m2
 #
 #	acl aclname url_regex [-i] ^http:// ...
-#	  # regex matching on whole URL [fast]
+#	  # POSIX extended regex matching on whole URL [fast]
 #	acl aclname urllogin [-i] [^a-zA-Z0-9] ...
-#	  # regex matching on URL login field
+#	  # POSIX extended regex matching on URL login field
 #	acl aclname urlpath_regex [-i] \.gif$ ...
-#	  # regex matching on URL path [fast]
+#	  # POSIX extended regex matching on URL path [fast]
 #
-#	acl aclname port 80 70 21 0-1024...   # destination TCP port [fast]
-#	                                      # ranges are allowed
+#	acl aclname port 80 70 21 0-1024 ...
+#	  # destination TCP port (or port range) of the request [fast]
+#	  #
+#	  # Port 0 matches requests that have no explicit and no default destination
+#	  # ports (e.g., HTTP requests with URN targets)
+#
 #	acl aclname localport 3128 ...	      # TCP port the client connected to [fast]
 #	                                      # NP: for interception mode this is usually '80'
 #
@@ -1064,22 +1075,13 @@
 #	acl aclname http_status 200 301 500- 400-403 ...
 #	  # status code in reply [fast]
 #
-#	acl aclname browser [-i] regexp ...
-#	  # pattern match on User-Agent header (see also req_header below) [fast]
+#	acl aclname browser [-i] regex ...
+#	  # POSIX extended regex match on User-Agent header
+#	  # (see also req_header below) [fast]
 #
-#	acl aclname referer_regex [-i] regexp ...
-#	  # pattern match on Referer header [fast]
+#	acl aclname referer_regex [-i] regex ...
+#	  # POSIX extended regex match on Referer header [fast]
 #	  # Referer is highly unreliable, so use with care
-#
-#	acl aclname ident [-i] username ...
-#	  # string match on ident output [slow]
-#	  # use REQUIRED to accept any non-null ident.
-#	  #
-#	  # See also: ident_regex. The two ACLs differ only in their parameter
-#	  # syntax and ident output matching algorithm.
-#
-#	acl aclname ident_regex [-i] username_pattern ...
-#	  # regex match on ident output [slow]
 #
 #	acl aclname proxy_auth [-i] username ...
 #	  # perform http authentication challenge to the client and match against
@@ -1092,8 +1094,8 @@
 #	  # their parameter syntax and username matching algorithm.
 #
 #	acl aclname proxy_auth_regex [-i] username_pattern ...
-#	  # perform http authentication challenge to the client and regex match
-#	  # supplied username [slow]
+#	  # perform http authentication challenge to the client and
+#	  # POSIX extended regex match on supplied username [slow]
 #	  #
 #	  # Will use proxy authentication in forward-proxy scenarios, and plain
 #	  # http authentication in reverse-proxy scenarios
@@ -1141,19 +1143,19 @@
 #	  # or ratio of matches:non-matches (3:5).
 #
 #	acl aclname req_mime_type [-i] mime-type ...
-#	  # regex match against the mime type of the request generated
+#	  # POSIX extended regex match against the mime type of the request generated
 #	  # by the client. Can be used to detect file upload or some
 #	  # types HTTP tunneling requests [fast]
 #	  # NOTE: This does NOT match the reply. You cannot use this
 #	  # to match the returned file type.
 #
 #	acl aclname req_header header-name [-i] any\.regex\.here
-#	  # regex match against any of the known request headers.  May be
+#	  # POSIX extended regex match against any of the known request headers.  May be
 #	  # thought of as a superset of "browser", "referer" and "mime-type"
 #	  # ACL [fast]
 #
 #	acl aclname rep_mime_type [-i] mime-type ...
-#	  # regex match against the mime type of the reply received by
+#	  # POSIX extended regex match against the mime type of the reply received by
 #	  # squid. Can be used to detect file download or some
 #	  # types HTTP tunneling requests. [fast]
 #	  # NOTE: This has no effect in http_access rules. It only has
@@ -1161,7 +1163,7 @@
 #	  # http_reply_access.
 #
 #	acl aclname rep_header header-name [-i] any\.regex\.here
-#	  # regex match against any of the known reply headers. May be
+#	  # POSIX extended regex match against any of the known reply headers. May be
 #	  # thought of as a superset of "browser", "referer" and "mime-type"
 #	  # ACLs [fast]
 #
@@ -1185,7 +1187,7 @@
 #	  # syntax and username matching algorithm.
 #
 #	acl aclname ext_user_regex [-i] username_pattern ...
-#	  # regex match on username returned by external acl helper [slow]
+#	  # POSIX extended regex match on username returned by external acl helper [slow]
 #
 #	acl aclname tag tagvalue ...
 #	  # string match on tag returned by external acl helper [fast]
@@ -1298,7 +1300,6 @@
 #	  # Matches transaction's initiator [fast]
 #	  #
 #	  # Supported initiators are:
-#	  #  esi: matches transactions fetching ESI resources
 #	  #  certificate-fetching: matches transactions fetching
 #	  #     a missing intermediate TLS certificate
 #	  #  cache-digest: matches transactions fetching Cache Digests
@@ -1343,7 +1344,7 @@
 #	  #  acl hasWhatMyLoggingDaemonNeeds has request
 #	  #  acl hasWhatMyLoggingDaemonNeeds has response
 #
-#acl aclname at_step step
+#	acl aclname at_step step
 #	  # match against the current request processing step [fast]
 #	  # Valid steps are:
 #	  #   GeneratingCONNECT: Generating HTTP CONNECT request headers
@@ -1406,6 +1407,12 @@
 #	  #
 #	  # Unlike dstdomain, this ACL does not perform DNS lookups.
 #	  #
+#	  # A server name may be an IP address. For example, subject alternative
+#	  # names (a.k.a. SANs) in some real server certificates include IPv4 and
+#	  # IPv6 entries. Internally, Squid uses inet_ntop(3) to prep IP names for
+#	  # matching. When using IPv6 names, use "::" notation (if applicable).
+#	  # Do not use brackets. For example: 1080::8:800:200c:417a.
+#	  #
 #	  # An ACL option below may be used to restrict what information
 #	  # sources are used to extract the server names from:
 #	  #
@@ -1428,7 +1435,11 @@
 #	  # connection, this target is the destination IP address).
 #
 #	acl aclname ssl::server_name_regex [-i] \.foo\.com ...
-#	  # regex matches server name obtained from various sources [fast]
+#	  # POSIX extended regex matches server name obtained from various sources [fast]
+#	  #
+#	  # See ssl::server_name for details, including IPv6 address formatting
+#	  # caveats. Use case-insensitive matching (i.e. -i option) to reduce
+#	  # dependency on how Squid formats or sanitizes server names.
 #
 #	acl aclname connections_encrypted
 #	  # matches transactions with all HTTP messages received over TLS
@@ -1835,30 +1846,6 @@ http_access deny all
 #	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
 #Default:
 # Allow, unless rules exist in squid.conf.
-
-#  TAG: ident_lookup_access
-#	A list of ACL elements which, if matched, cause an ident
-#	(RFC 931) lookup to be performed for this request.  For
-#	example, you might choose to always perform ident lookups
-#	for your main multi-user Unix boxes, but not for your Macs
-#	and PCs.  By default, ident lookups are not performed for
-#	any requests.
-#
-#	To enable ident lookups for specific client addresses, you
-#	can follow this example:
-#
-#	acl ident_aware_hosts src 198.168.1.0/24
-#	ident_lookup_access allow ident_aware_hosts
-#	ident_lookup_access deny all
-#
-#	Only src type ACL checks are fully supported.  A srcdomain
-#	ACL might work at times, but it will not always provide
-#	the correct result.
-#
-#	This clause only supports fast acl types.
-#	See https://wiki.squid-cache.org/SquidFaq/SquidAcl for details.
-#Default:
-# Unless rules exist in squid.conf, IDENT is not fetched.
 
 #  TAG: reply_body_max_size	size [acl acl...]
 #	This option specifies the maximum size of a reply body. It can be
@@ -2294,6 +2281,9 @@ http_port 3128
 #	The tls-cert= option is mandatory on HTTPS ports.
 #
 #	See http_port for a list of modes and options.
+#	Not all http_port options are available for https_port.
+#	Among the unavalable options:
+#	- require-proxy-header
 #Default:
 # none
 
@@ -2355,6 +2345,9 @@ http_port 3128
 #
 #	Other http_port modes and options that are not specific to HTTP and
 #	HTTPS may also work.
+#	Among the options that are not available for ftp_port:
+#	- require-proxy-header
+#	- ssl-bump
 #Default:
 # none
 
@@ -2419,7 +2412,7 @@ http_port 3128
 
 #  TAG: tcp_outgoing_mark
 # Note: This option is only available if Squid is rebuilt with the
-#       Packet MARK (Linux)
+#       --with-cap and Packet MARK (Linux)
 #
 #	Allows you to apply a Netfilter mark value to outgoing packets
 #	on the server side, based on an ACL.
@@ -2440,7 +2433,7 @@ http_port 3128
 
 #  TAG: mark_client_packet
 # Note: This option is only available if Squid is rebuilt with the
-#       Packet MARK (Linux)
+#       --with-cap and Packet MARK (Linux)
 #
 #	Allows you to apply a Netfilter MARK value to packets being transmitted
 #	on the client-side, based on an ACL.
@@ -2465,7 +2458,7 @@ http_port 3128
 
 #  TAG: mark_client_connection
 # Note: This option is only available if Squid is rebuilt with the
-#       Packet MARK (Linux)
+#       --with-cap and Packet MARK (Linux)
 #
 #	Allows you to apply a Netfilter CONNMARK value to a connection
 #	on the client-side, based on an ACL.
@@ -3289,7 +3282,7 @@ http_port 3128
 #			The requests will be distributed among the parents based on the
 #			CARP load balancing hash function based on their weight.
 #
-#	userhash	Load-balance parents based on the client proxy_auth or ident username.
+#	userhash	Load-balance parents based on the client proxy_auth username.
 #
 #	sourcehash	Load-balance parents based on the client source IP.
 #
@@ -4240,10 +4233,23 @@ http_port 3128
 #	Format codes:
 #
 #		%	a literal % character
+#
+#		byte{value}	Adds a single byte with the given value (e.g., %byte{10}
+#			adds an ASCII LF character a.k.a. "new line" or "\n"). The value
+#			parameter is required and must be a positive decimal integer not
+#			exceeding 255. Zero-valued bytes (i.e. ASCII NUL characters) are
+#			not yet supported.
+#
 #		sn	Unique sequence number per log line entry
 #		err_code    The ID of an error response served by Squid or
 #				a similar internal error identifier.
-#		err_detail  Additional err_code-dependent error information.
+#
+#		err_detail  Additional err_code-dependent error information. Multiple
+#			details are separated by the plus sign ('+'). Admins should not
+#			rely on a particular detail listing order, the uniqueness of the
+#			entries, or individual detail text stability. All those properties
+#			depend on many unstable factors, including external libraries.
+#
 #		note	The annotation specified by the argument. Also
 #			logs the adaptation meta headers set by the
 #			adaptation_meta configuration parameter.
@@ -4377,13 +4383,11 @@ http_port 3128
 #		un	User name (any available)
 #		ul	User name from authentication
 #		ue	User name from external acl helper
-#		ui	User name from ident
 #		un	A user name. Expands to the first available name
 #			from the following list of information sources:
 #			- authenticated user name, like %ul
 #			- user name supplied by an external ACL, like %ue
 #			- SSL client name, like %us
-#			- ident user name, like %ui
 #		credentials Client credentials. The exact meaning depends on
 #			the authentication scheme: For Basic authentication,
 #			it is the password; for Digest, the realm sent by the
@@ -4491,10 +4495,34 @@ http_port 3128
 #		[http::]<pt	Peer response time in milliseconds. The timer starts
 #				when the last request byte is sent to the next hop
 #				and stops when the last response byte is received.
-#		[http::]<tt	Total time in milliseconds. The timer
-#				starts with the first connect request (or write I/O)
-#				sent to the first selected peer. The timer stops
-#				with the last I/O with the last peer.
+#		[http::]<tt	Total time spent forwarding to origin servers or
+#				cache_peers (milliseconds).
+#
+#				The timer starts when Squid decides to forward the request (to
+#				an origin server or cache_peer) and peer selection begins. The
+#				timer stops when relevant forwarding activities (including any
+#				retries) end.
+#
+#				Between those two timer events, Squid may perform DNS lookups,
+#				query external ACL helpers, adapt responses using pre-cache
+#				RESPMOD services, and participate in other concurrent
+#				secondary activities. Most secondary activities increase
+#				peering time. In some cases, a secondary activity may start
+#				before the timer starts or end after the timer stops, leading
+#				to misleading results of simple computations like %<tt - %dt.
+#
+#				If this logformat %code is used before its timer starts, the
+#				corresponding measurement has no value (and the %code expands
+#				to a single dash ("-") character).
+#
+#				If this code is used while its timer is running, the time
+#				spent so far is used as the measurement value.
+#
+#				When Squid re-forwards the request (e.g., after certain cache
+#				revalidation failures), the timer may restart. In this case,
+#				the new measurement is added to the value accumulated from
+#				previous forwarding attempts. The time interval between
+#				forwarding attempts is not added to the final result.
 #
 #	Squid handling related format codes:
 #
@@ -4507,7 +4535,7 @@ http_port 3128
 #			as a forwarding attempt. Pure cache hits log zero, but cache hits
 #			that triggered HTTP cache revalidation log the number of attempts
 #			made when sending an internal revalidation request. DNS, ICMP,
-#			ICP, HTCP, ESI, ICAP, eCAP, helper, and other secondary requests
+#			ICP, HTCP, ICAP, eCAP, helper, and other secondary requests
 #			sent by Squid as a part of a master transaction do not increment
 #			the counter logged for the received request.
 #
@@ -4707,8 +4735,8 @@ http_port 3128
 #	The default formats available (which do not need re-defining) are:
 #
 #logformat squid      %ts.%03tu %6tr %>a %Ss/%03>Hs %<st %rm %ru %[un %Sh/%<a %mt
-#logformat common     %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st %Ss:%Sh
-#logformat combined   %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
+#logformat common     %>a - %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st %Ss:%Sh
+#logformat combined   %>a - %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
 #logformat referrer   %ts.%03tu %>a %{Referer}>h %ru
 #logformat useragent  %>a [%tl] "%{User-Agent}>h"
 #
@@ -5065,7 +5093,7 @@ http_port 3128
 #	records if it cannot write/send them immediately due to pending I/Os
 #	(e.g., the I/O writing the previous log record) or connectivity loss.
 #
-#	Currently honored by 'daemon' and 'tcp' access_log modules only.
+#	Currently honored by 'daemon', 'tcp' and 'udp' access_log modules only.
 #Default:
 # buffered_logs off
 
@@ -5153,7 +5181,7 @@ http_port 3128
 #
 #	Most messages have _not_ been instrumented to support this directive
 #	yet. For the list of instrumented messages and their IDs, please see
-#	the doc/debug-messages.txt file.
+#	the doc/debug-messages.dox file.
 #
 #	Message ID corresponds to the message semantics rather than message
 #	text or source code location. The ID is stable across Squid
@@ -5413,6 +5441,12 @@ coredump_dir /var/cache/squid
 #		snippets of that state. For example, Squid does not adjust
 #		Location headers and embedded URLs after the helper rewrites
 #		the request URL.
+#
+#		If Squid cannot parse the URL value returned by the helper, it logs a
+#		critical cache.log ERROR message and uses the original request URL.
+#		Supported URL format depends on the request method. For example,
+#		CONNECT request URLs must use `host:port` form, while GET URLs start
+#		with a `scheme:` prefix (e.g., `https://example.com/`).
 #
 #	  OK
 #		Keep the client request intact.
@@ -5785,7 +5819,9 @@ coredump_dir /var/cache/squid
 #  TAG: send_hit
 #	Responses denied by this directive will not be served from the cache
 #	(but may still be cached, see store_miss). This directive has no
-#	effect on the responses it allows and on the cached objects.
+#	effect on the responses it allows and on the cached objects. This
+#	directive is applied to both regular from-cache responses and responses
+#	reused by collapsed requests (see collapsed_forwarding).
 #
 #	Please see the "cache" directive for a summary of differences among
 #	store_miss, send_hit, and cache directives.
@@ -5949,16 +5985,14 @@ refresh_pattern .		0	20%	4320
 # quick_abort_max 16 KB
 
 #  TAG: quick_abort_pct	(percent)
-#	The cache by default continues downloading aborted requests
-#	which are almost completed (less than 16 KB remaining). This
-#	may be undesirable on slow (e.g. SLIP) links and/or very busy
-#	caches.  Impatient users may tie up file descriptors and
-#	bandwidth by repeatedly requesting and immediately aborting
-#	downloads.
-#
-#	When the user aborts a request, Squid will check the
-#	quick_abort values to the amount of data transferred until
-#	then.
+#	Continuing to download a cachable response after its request is aborted is
+#	going to waste resources if the received response is not requested again.
+#	On the other hand, aborting an in-progress download may effectively waste
+#	(already spent) resources if the received cachable response is requested
+#	again. Such waste is especially noticeable when, for example, impatient
+#	users repeatedly request and then abort slow downloads. To balance these
+#	trade-offs when a request is aborted during response download, Squid may
+#	check quick_abort_* directives to decide whether to finish the retrieval:
 #
 #	If the transfer has less than 'quick_abort_min' KB remaining,
 #	it will finish the retrieval.
@@ -5975,6 +6009,10 @@ refresh_pattern .		0	20%	4320
 #
 #	If you want retrievals to always continue if they are being
 #	cached set 'quick_abort_min' to '-1 KB'.
+#
+#	Many other conditions affect Squid decision to abort or continue download.
+#	For example, Squid continues to download responses that feed other
+#	requests but aborts responses with unknown body length.
 #Default:
 # quick_abort_pct 95
 
@@ -6060,9 +6098,6 @@ refresh_pattern .		0	20%	4320
 #	In reverse proxy environments it might be desirable to honor
 #	shorter object lifetimes. It is most likely better to make
 #	your server return a meaningful Last-Modified header however.
-#
-#	In ESI environments where page fragments often have short
-#	lifetimes, this will often be best set to 0.
 #Default:
 # minimum_expiry_time 60 seconds
 
@@ -6446,6 +6481,11 @@ refresh_pattern .		0	20%	4320
 #       requests hitting a stale cached object. Revalidation collapsing
 #       is currently disabled for Squid instances containing SMP-aware
 #       disk or memory caches and for Vary-controlled cached objects.
+#
+#       A response reused by the collapsed request is deemed fresh in that
+#       request processing context -- Squid does not apply refresh_pattern and
+#       internal freshness validation checks to collapsed transactions. Squid
+#       does apply send_hit rules.
 #Default:
 # collapsed_forwarding off
 
@@ -6636,15 +6676,6 @@ refresh_pattern .		0	20%	4320
 #Default:
 # server_idle_pconn_timeout 1 minute
 
-#  TAG: ident_timeout
-#	Maximum time to wait for IDENT lookups to complete.
-#
-#	If this is too high, and you enabled IDENT lookups from untrusted
-#	users, you might be susceptible to denial-of-service by having
-#	many ident requests going at once.
-#Default:
-# ident_timeout 10 seconds
-
 #  TAG: shutdown_lifetime	time-units
 #	When SIGTERM or SIGHUP is received, the cache is put into
 #	"shutdown pending" mode until all active sockets are closed.
@@ -6711,8 +6742,8 @@ refresh_pattern .		0	20%	4320
 #  TAG: httpd_suppress_version_string	on|off
 #	Do not send Squid version string in HTTP metadata and generated content
 #	such as HTML error pages. Squid version string is still present in certain
-#	SNMP responses, cachemgr.cgi output, squidclient User-Agent request header
-#	field, various console output, and cache.log.
+#	SNMP responses, HTTP(S) Server response header field,
+#        various console output, and cache.log.
 #Default:
 # httpd_suppress_version_string off
 
@@ -6767,17 +6798,6 @@ refresh_pattern .		0	20%	4320
 #	Set this to on to have squid behave as a remote surrogate.
 #Default:
 # http_accel_surrogate_remote off
-
-#  TAG: esi_parser	libxml2|expat
-# Note: This option is only available if Squid is rebuilt with the
-#       --enable-esi
-#
-#	Selects the XML parsing library to use when interpreting responses with
-#	Edge Side Includes.
-#
-#	To disable ESI handling completely, ./configure Squid with --disable-esi.
-#Default:
-# Selects libxml2 if available at ./configure time or libexpat otherwise.
 
 # DELAY POOL PARAMETERS
 # -----------------------------------------------------------------------------
@@ -7620,46 +7640,6 @@ refresh_pattern .		0	20%	4320
 #Default:
 # none
 
-#  TAG: mcast_miss_addr
-# Note: This option is only available if Squid is rebuilt with the
-#       -DMULTICAST_MISS_STREAM define
-#
-#	If you enable this option, every "cache miss" URL will
-#	be sent out on the specified multicast address.
-#
-#	Do not enable this option unless you are are absolutely
-#	certain you understand what you are doing.
-#Default:
-# disabled.
-
-#  TAG: mcast_miss_ttl
-# Note: This option is only available if Squid is rebuilt with the
-#       -DMULTICAST_MISS_STREAM define
-#
-#	This is the time-to-live value for packets multicasted
-#	when multicasting off cache miss URLs is enabled.  By
-#	default this is set to 'site scope', i.e. 16.
-#Default:
-# mcast_miss_ttl 16
-
-#  TAG: mcast_miss_port
-# Note: This option is only available if Squid is rebuilt with the
-#       -DMULTICAST_MISS_STREAM define
-#
-#	This is the port number to be used in conjunction with
-#	'mcast_miss_addr'.
-#Default:
-# mcast_miss_port 3135
-
-#  TAG: mcast_miss_encode_key
-# Note: This option is only available if Squid is rebuilt with the
-#       -DMULTICAST_MISS_STREAM define
-#
-#	The URLs that are sent in the multicast miss stream are
-#	encrypted.  This is the encryption key.
-#Default:
-# mcast_miss_encode_key XXXXXXXXXXXXXXXX
-
 #  TAG: mcast_icp_query_timeout	(msec)
 #	For multicast peers, Squid regularly sends out ICP "probes" to
 #	count how many other peers are listening on the given multicast
@@ -7770,8 +7750,14 @@ refresh_pattern .		0	20%	4320
 #	included in the mailto links of the ERR pages (if %W is set)
 #	so that the email body contains the data.
 #	Syntax is <A HREF="mailto:%w%W">%w</A>
+#
+#	SECURITY WARNING:
+#		Request headers and other included facts may contain
+#		sensitive information about transaction history, the
+#		Squid instance, and its environment which would be
+#		unavailable to error recipients otherwise.
 #Default:
-# email_err_data on
+# email_err_data off
 
 #  TAG: deny_info
 #	Usage:   deny_info err_page_name acl
@@ -8963,7 +8949,6 @@ refresh_pattern .		0	20%	4320
 #		mem
 #		menu
 #		netdb
-#		non_peers
 #		objects
 #		offline_toggle *
 #		pconn
@@ -9041,7 +9026,7 @@ refresh_pattern .		0	20%	4320
 #	are governed by forward_max_tries instead.
 #
 #	See also: connect_timeout, forward_timeout, icap_connect_timeout,
-#	ident_timeout, and forward_max_tries.
+#	and forward_max_tries.
 #Default:
 # Do not retry failed connections.
 
