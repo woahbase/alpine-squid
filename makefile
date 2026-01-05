@@ -506,6 +506,6 @@ $(shell docker run --rm --pull=never \
 	-v \
 	2>/dev/null \
 	| grep 'Squid Cache: Version ' \
-	| sed -e 's_Squid Cache: Version __')
+	| awk -F'[ -]' '{print $$4}')
 endef
 # -- }}}
