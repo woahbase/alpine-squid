@@ -29,6 +29,6 @@ HEALTHCHECK \
     --start-period=5m \
     --timeout=10s \
     CMD \
-    squidclient --ping -g 3 -I 1 || exit 1
+    nc -z -i 1 -w 1 localhost 3128 || exit 1
 #
 ENTRYPOINT ["/init"]
